@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>四六级背单词 · 遗忘曲线 · 真题训练</title>
+    <style>
+        :root {
+            --bg: #f0f4f8;
+            --card-bg: #ffffff;
+            --primary: #4f46e5;
+            --primary-light: #6366f1;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 24px rgba(0,0,0,0.08);
+            --shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+        .app-container { max-width: 780px; margin: 0 auto; padding: 20px 16px 40px; position: relative; z-index: 1; }
+        .app-header { text-align: center; padding: 28px 0 8px; }
+        .app-header .logo { font-size: 2.2em; font-weight: 800; background: linear-gradient(135deg, #4f46e5, #8b5cf6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .app-header .subtitle { font-size: 0.9em; color: var(--text-secondary); margin-top: 2px; }
+        .tab-nav { display: flex; background: var(--card-bg); border-radius: var(--radius); padding: 5px; gap:4px; margin:16px 0; box-shadow: var(--shadow); position: sticky; top:16px; z-index:10; }
+        .tab-btn { flex:1; padding:12px 8px; border:none; background:transparent; border-radius:calc(var(--radius)-4px); cursor:pointer; font-size:0.95em; font-weight:600; color:var(--text-secondary); transition:var(--transition); display:flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap; position:relative; }
+        .tab-btn:hover { color:var(--text); background:rgba(79,70,229,0.04); }
+        .tab-btn.active { background:var(--primary); color:#fff; box-shadow:0 4px 12px rgba(79,70,229,0.35); }
+        .tab-badge { position:absolute; top:4px; right:8px; background:var(--danger); color:#fff; font-size:0.7em; font-weight:700; min-width:18px; height:18px; border-radius:9px; display:flex; align-items:center; justify-content:center; padding:0 5px; animation:pulse-badge 2s ease-in-out infinite; }
+        @keyframes pulse-badge { 0%,100%{transform:scale(1);} 50%{transform:scale(1.15);} }
+        .panel { display:none; animation: fadeSlideIn 0.4s ease; }
+        .panel.active { display:block; }
+        @keyframes fadeSlideIn { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
+        .stats-row { display:grid; grid-template-columns: repeat(4,1fr); gap:10px; margin-bottom:20px; }
+        .stat-card { background:var(--card-bg); border-radius:var(--radius-sm); padding:14px 10px; text-align:center; box-shadow:var(--shadow); transition:var(--transition); }
+        .stat-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-lg); }
+        .stat-card .stat-num { font-size:1.6em; font-weight:700; color:var(--primary); line-height:1; }
+        .stat-card .stat-label { font-size:0.7em; color:var(--text-secondary); margin-top:4px; }
+        .stat-card.mastered .stat-num { color:var(--success); } .stat-card.review .stat-num { color:var(--warning); } .stat-card.new-words .stat-num { color:#8b5cf6; }
+        .word-card-container { perspective:1200px; margin:0 auto 20px; max-width:500px; }
+        .word-card { width:100%; aspect-ratio:1.4/1; position:relative; cursor:pointer; transform-style:preserve-3d; transition:transform 0.6s; -webkit-tap-highlight-color:transparent; }
+        .word-card.flipped { transform:rotateY(180deg); }
+        .word-card-face { position:absolute; inset:0; backface-visibility:hidden; border-radius:var(--radius); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px 24px; box-shadow:var(--shadow-lg); overflow:hidden; }
+        .word-card-front { background:linear-gradient(145deg,#fff,#f8fafc); border:2px solid var(--border); z-index:2; }
+        .word-card-back { background:linear-gradient(145deg,#fefefe,#fdfcfb); border:2px solid #e8e4f0; transform:rotateY(180deg); z-index:1; }
+        .card-word { font-size:2.6em; font-weight:800; color:var(--text); text-align:center; word-break:break-word; }
+        .card-phonetic { font-size:1em; color:var(--text-secondary); margin-top:6px; font-family:monospace; }
+        .card-meaning { font-size:1.5em; font-weight:700; color:#4f46e5; text-align:center; margin-bottom:6px; }
+        .card-example { font-size:0.9em; color:#555; text-align:center; font-style:italic; margin-top:4px; }
+        .card-stage-badge { position:absolute; top:14px; right:16px; font-size:0.7em; font-weight:600; padding:4px 10px; border-radius:20px; background:#eef2ff; color:#4f46e5; }
+        .action-buttons { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-top:8px; }
+        .btn { padding:13px 28px; border:none; border-radius:30px; cursor:pointer; font-size:1em; font-weight:600; transition:var(--transition); display:flex; align-items:center; gap:6px; -webkit-tap-highlight-color:transparent; }
+        .btn:active { transform:scale(0.94); }
+        .btn-know { background:var(--success); color:#fff; box-shadow:0 4px 14px rgba(16,185,129,0.35); }
+        .btn-dunno { background:#fff; color:var(--danger); border:2px solid var(--danger); }
+        .btn-speak { background:#fff; color:var(--primary); border:2px solid var(--primary); padding:10px 18px; font-size:0.9em; }
+        .btn-primary { background:var(--primary); color:#fff; }
+        .btn-outline { background:#fff; color:var(--primary); border:2px solid var(--border); }
+        .reading-passage { background:var(--card-bg); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); margin-bottom:16px; font-size:0.95em; line-height:1.7; }
+        .quiz-option { padding:12px 18px; border:2px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; transition:var(--transition); background:#fafbfc; margin-top:8px; }
+        .quiz-option.correct { border-color:var(--success)!important; background:#ecfdf5!important; }
+        .quiz-option.wrong { border-color:var(--danger)!important; background:#fef2f2!important; }
+        .listening-card { background:var(--card-bg); border-radius:var(--radius); padding:24px; box-shadow:var(--shadow-lg); }
+        .import-btn { background:#fff; color:var(--primary); border:2px dashed var(--primary); padding:10px 18px; border-radius:30px; cursor:pointer; font-size:0.85em; margin-left:8px; }
+        .toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#1e293b; color:#fff; padding:12px 24px; border-radius:30px; font-weight:600; z-index:999; animation:toastIn 0.4s ease, toastOut 0.4s ease 1.8s forwards; }
+        @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(-20px);} to{opacity:1;transform:translateX(-50%) translateY(0);} }
+        @keyframes toastOut { from{opacity:1;} to{opacity:0;transform:translateX(-50%) translateY(-30px);} }
+        @media (max-width:600px) { .stats-row{grid-template-columns:repeat(2,1fr);} .card-word{font-size:2em;} }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <header class="app-header"><div class="logo">📚 WordMaster</div><div class="subtitle">四六级 · 遗忘曲线 · 真题训练</div></header>
+    <nav class="tab-nav" id="tabNav">
+        <button class="tab-btn active" data-tab="vocab">📝 背单词<span class="tab-badge" id="reviewBadge" style="display:none;">0</span></button>
+        <button class="tab-btn" data-tab="reading">📖 阅读真题</button>
+        <button class="tab-btn" data-tab="listening">🎧 听力真题</button>
+    </nav>
+
+    <!-- 背单词面板 -->
+    <div class="panel active" id="panelVocab">
+        <div class="stats-row">
+            <div class="stat-card new-words"><div class="stat-num" id="statNew">0</div><div class="stat-label">📥 新词待学</div></div>
+            <div class="stat-card review"><div class="stat-num" id="statReview">0</div><div class="stat-label">⏰ 待复习</div></div>
+            <div class="stat-card mastered"><div class="stat-num" id="statMastered">0</div><div class="stat-label">✅ 已掌握</div></div>
+            <div class="stat-card"><div class="stat-num" id="statTotal">0</div><div class="stat-label">📊 总词库</div></div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+            <select class="select-sm" id="levelSelect" style="padding:8px 14px; border-radius:20px; border:2px solid #e2e8f0;">
+                <option value="all">📚 全部词库</option>
+                <option value="CET4">📘 四级高频词</option>
+                <option value="CET6">📙 六级高频词</option>
+            </select>
+            <select class="select-sm" id="dailyNewCount" style="padding:8px 14px; border-radius:20px; border:2px solid #e2e8f0;">
+                <option value="10">每日新词:10</option><option value="15">每日新词:15</option><option value="20" selected>每日新词:20</option><option value="30">每日新词:30</option>
+            </select>
+            <button class="import-btn" id="btnImportWords">📥 导入完整词库JSON</button>
+        </div>
+        <div class="word-card-container" id="wordCardContainer">
+            <div class="word-card" id="wordCard">
+                <div class="word-card-face word-card-front"><div class="card-word" id="cardWord"></div><div class="card-phonetic" id="cardPhonetic"></div></div>
+                <div class="word-card-face word-card-back"><span class="card-stage-badge" id="cardStageBadge">新词</span><div class="card-meaning" id="cardMeaning"></div><div class="card-example" id="cardExample"></div></div>
+            </div>
+        </div>
+        <div class="action-buttons">
+            <button class="btn btn-speak" id="btnSpeakCard">🔊 朗读</button>
+            <button class="btn btn-dunno" id="btnDunno">😕 不认识</button>
+            <button class="btn btn-know" id="btnKnow">😊 认识</button>
+        </div>
+        <div id="emptyVocab" style="display:none; text-align:center; padding:40px;">🎉 暂无待复习单词，请调整级别或导入更多词汇</div>
+    </div>
+
+    <!-- 阅读真题面板 -->
+    <div class="panel" id="panelReading">
+        <div class="reading-passage" id="readingPassageText"></div>
+        <div id="readingQuestion" style="font-weight:600; margin:10px 0;"></div>
+        <div id="readingOptions"></div>
+        <div id="readingFeedback" style="margin-top:12px; font-weight:600;"></div>
+        <button class="btn btn-primary" id="btnNextReading" style="display:none; margin-top:12px;">下一题 ➡️</button>
+        <div style="margin-top:8px; color:var(--text-secondary);">正确率：<span id="readAccuracy">-</span> (已做<span id="readDone">0</span>题)</div>
+        <button class="import-btn" id="btnImportReading" style="margin-top:8px;">📥 导入阅读真题JSON</button>
+    </div>
+
+    <!-- 听力真题面板 -->
+    <div class="panel" id="panelListening">
+        <div class="listening-card">
+            <button class="btn btn-speak" id="btnPlayListenAudio" style="margin-bottom:12px;">🔊 播放听力原文</button>
+            <div id="listenQuestion" style="font-weight:600; margin:8px 0;"></div>
+            <div id="listenOptions"></div>
+            <div id="listenFeedback" style="margin-top:10px; font-weight:600;"></div>
+            <button class="btn btn-primary" id="btnNextListen" style="display:none; margin-top:10px;">下一题 ➡️</button>
+        </div>
+        <div style="margin-top:8px; color:var(--text-secondary);">正确率：<span id="listenAccuracy">-</span> (已做<span id="listenDone">0</span>题)</div>
+        <button class="import-btn" id="btnImportListening" style="margin-top:8px;">📥 导入听力真题JSON</button>
+    </div>
+</div>
+
+<script>
+(function() {
+    // ========== 内置高频词库 (部分示例，完整词库请导入JSON) ==========
+    const cet4HighFreq = [
+        {id:1,word:'abandon',phonetic:'/əˈbændən/',meaning:'v. 放弃；抛弃',example:'He had to abandon his plan.',level:'CET4'},
+        {id:2,word:'absorb',phonetic:'/əbˈzɔːrb/',meaning:'v. 吸收；吸引',example:'Plants absorb sunlight.',level:'CET4'},
+        {id:3,word:'abstract',phonetic:'/ˈæbstrækt/',meaning:'adj. 抽象的',example:'Abstract concepts are hard.',level:'CET4'},
+        {id:4,word:'abundant',phonetic:'/əˈbʌndənt/',meaning:'adj. 丰富的',example:'Abundant resources.',level:'CET4'},
+        {id:5,word:'academic',phonetic:'/ˌækəˈdemɪk/',meaning:'adj. 学术的',example:'Academic performance.',level:'CET4'},
+        {id:6,word:'accelerate',phonetic:'/əkˈseləreɪt/',meaning:'v. 加速',example:'The car accelerated.',level:'CET4'},
+        {id:7,word:'access',phonetic:'/ˈækses/',meaning:'n. 进入；使用权',example:'Access to information.',level:'CET4'},
+        {id:8,word:'accommodate',phonetic:'/əˈkɒmədeɪt/',meaning:'v. 容纳；适应',example:'The hotel accommodates 500.',level:'CET4'},
+        {id:9,word:'accompany',phonetic:'/əˈkʌmpəni/',meaning:'v. 陪伴',example:'She accompanied me.',level:'CET4'},
+        {id:10,word:'accomplish',phonetic:'/əˈkɒmplɪʃ/',meaning:'v. 完成',example:'Accomplish the task.',level:'CET4'},
+        {id:11,word:'accurate',phonetic:'/ˈækjərət/',meaning:'adj. 准确的',example:'Accurate data.',level:'CET4'},
+        {id:12,word:'achieve',phonetic:'/əˈtʃiːv/',meaning:'v. 达到；取得',example:'Achieve goals.',level:'CET4'},
+        {id:13,word:'acknowledge',phonetic:'/əkˈnɒlɪdʒ/',meaning:'v. 承认',example:'Acknowledge mistake.',level:'CET4'},
+        {id:14,word:'acquire',phonetic:'/əˈkwaɪər/',meaning:'v. 获得',example:'Acquire knowledge.',level:'CET4'},
+        {id:15,word:'adapt',phonetic:'/əˈdæpt/',meaning:'v. 适应',example:'Adapt to changes.',level:'CET4'},
+        {id:16,word:'adequate',phonetic:'/ˈædɪkwət/',meaning:'adj. 足够的',example:'Adequate supply.',level:'CET4'},
+        {id:17,word:'adjust',phonetic:'/əˈdʒʌst/',meaning:'v. 调整',example:'Adjust the volume.',level:'CET4'},
+        {id:18,word:'admire',phonetic:'/ədˈmaɪər/',meaning:'v. 钦佩',example:'I admire her.',level:'CET4'},
+        {id:19,word:'adopt',phonetic:'/əˈdɒpt/',meaning:'v. 采用；收养',example:'Adopt a policy.',level:'CET4'},
+        {id:20,word:'advance',phonetic:'/ədˈvɑːns/',meaning:'n./v. 前进',example:'Advance technology.',level:'CET4'},
+        {id:21,word:'adventure',phonetic:'/ədˈventʃər/',meaning:'n. 冒险',example:'Great adventure.',level:'CET4'},
+        {id:22,word:'affect',phonetic:'/əˈfekt/',meaning:'v. 影响',example:'Affect mood.',level:'CET4'},
+        {id:23,word:'aggressive',phonetic:'/əˈɡresɪv/',meaning:'adj. 侵略的；积极的',example:'Aggressive plan.',level:'CET4'},
+        {id:24,word:'alternative',phonetic:'/ɔːlˈtɜːrnətɪv/',meaning:'n. 替代品',example:'Alternative solution.',level:'CET4'},
+        {id:25,word:'amaze',phonetic:'/əˈmeɪz/',meaning:'v. 使惊奇',example:'It amazed me.',level:'CET4'},
+        {id:26,word:'ambition',phonetic:'/æmˈbɪʃən/',meaning:'n. 雄心',example:'Great ambition.',level:'CET4'},
+        {id:27,word:'analyze',phonetic:'/ˈænəlaɪz/',meaning:'v. 分析',example:'Analyze data.',level:'CET4'},
+        {id:28,word:'anticipate',phonetic:'/ænˈtɪsɪpeɪt/',meaning:'v. 预期',example:'Anticipate success.',level:'CET4'},
+        {id:29,word:'anxiety',phonetic:'/æŋˈzaɪəti/',meaning:'n. 焦虑',example:'Exam anxiety.',level:'CET4'},
+        {id:30,word:'apparent',phonetic:'/əˈpærənt/',meaning:'adj. 明显的',example:'Apparent reason.',level:'CET4'},
+        {id:31,word:'appetite',phonetic:'/ˈæpɪtaɪt/',meaning:'n. 食欲',example:'Good appetite.',level:'CET4'},
+        {id:32,word:'approach',phonetic:'/əˈprəʊtʃ/',meaning:'v. 接近；方法',example:'New approach.',level:'CET4'},
+        {id:33,word:'appropriate',phonetic:'/əˈprəʊpriət/',meaning:'adj. 适当的',example:'Appropriate behavior.',level:'CET4'},
+        {id:34,word:'approve',phonetic:'/əˈpruːv/',meaning:'v. 批准',example:'Approve budget.',level:'CET4'},
+        {id:35,word:'arise',phonetic:'/əˈraɪz/',meaning:'v. 出现',example:'Problems arise.',level:'CET4'},
+        {id:36,word:'arrange',phonetic:'/əˈreɪndʒ/',meaning:'v. 安排',example:'Arrange meeting.',level:'CET4'},
+        {id:37,word:'artificial',phonetic:'/ˌɑːrtɪˈfɪʃəl/',meaning:'adj. 人工的',example:'Artificial intelligence.',level:'CET4'},
+        {id:38,word:'aspect',phonetic:'/ˈæspekt/',meaning:'n. 方面',example:'Important aspect.',level:'CET4'},
+        {id:39,word:'assemble',phonetic:'/əˈsembəl/',meaning:'v. 集合；组装',example:'Assemble parts.',level:'CET4'},
+        {id:40,word:'assess',phonetic:'/əˈses/',meaning:'v. 评估',example:'Assess performance.',level:'CET4'},
+        {id:41,word:'assign',phonetic:'/əˈsaɪn/',meaning:'v. 分配',example:'Assign tasks.',level:'CET4'},
+        {id:42,word:'assist',phonetic:'/əˈsɪst/',meaning:'v. 帮助',example:'Assist doctor.',level:'CET4'},
+        {id:43,word:'associate',phonetic:'/əˈsəʊʃieɪt/',meaning:'v. 联系',example:'Associate with.',level:'CET4'},
+        {id:44,word:'assume',phonetic:'/əˈsjuːm/',meaning:'v. 假设',example:'Assume responsibility.',level:'CET4'},
+        {id:45,word:'atmosphere',phonetic:'/ˈætməsfɪər/',meaning:'n. 大气；氛围',example:'Romantic atmosphere.',level:'CET4'},
+        {id:46,word:'attach',phonetic:'/əˈtætʃ/',meaning:'v. 附上',example:'Attach file.',level:'CET4'},
+        {id:47,word:'attain',phonetic:'/əˈteɪn/',meaning:'v. 达到',example:'Attain goal.',level:'CET4'},
+        {id:48,word:'attempt',phonetic:'/əˈtempt/',meaning:'v./n. 尝试',example:'Attempt to break.',level:'CET4'},
+        {id:49,word:'attend',phonetic:'/əˈtend/',meaning:'v. 参加',example:'Attend lecture.',level:'CET4'},
+        {id:50,word:'attitude',phonetic:'/ˈætɪtjuːd/',meaning:'n. 态度',example:'Positive attitude.',level:'CET4'},
+        {id:51,word:'attract',phonetic:'/əˈtrækt/',meaning:'v. 吸引',example:'Attract visitors.',level:'CET4'},
+        {id:52,word:'authority',phonetic:'/ɔːˈθɒrəti/',meaning:'n. 权威',example:'Local authority.',level:'CET4'},
+        {id:53,word:'available',phonetic:'/əˈveɪləbəl/',meaning:'adj. 可用的',example:'Available seat.',level:'CET4'},
+        {id:54,word:'avoid',phonetic:'/əˈvɔɪd/',meaning:'v. 避免',example:'Avoid mistakes.',level:'CET4'},
+        {id:55,word:'award',phonetic:'/əˈwɔːrd/',meaning:'n. 奖品',example:'Receive award.',level:'CET4'},
+        {id:56,word:'aware',phonetic:'/əˈweər/',meaning:'adj. 意识到的',example:'Be aware of.',level:'CET4'},
+        {id:57,word:'barrier',phonetic:'/ˈbæriər/',meaning:'n. 障碍',example:'Language barrier.',level:'CET4'},
+        {id:58,word:'benefit',phonetic:'/ˈbenɪfɪt/',meaning:'n. 利益',example:'Health benefit.',level:'CET4'},
+        {id:59,word:'budget',phonetic:'/ˈbʌdʒɪt/',meaning:'n. 预算',example:'Plan budget.',level:'CET4'},
+        {id:60,word:'candidate',phonetic:'/ˈkændɪdət/',meaning:'n. 候选人',example:'Job candidate.',level:'CET4'},
+        {id:61,word:'capable',phonetic:'/ˈkeɪpəbəl/',meaning:'adj. 有能力的',example:'Capable of doing.',level:'CET4'},
+        {id:62,word:'capture',phonetic:'/ˈkæptʃər/',meaning:'v. 捕获；吸引',example:'Capture attention.',level:'CET4'},
+        {id:63,word:'career',phonetic:'/kəˈrɪər/',meaning:'n. 职业',example:'Career development.',level:'CET4'},
+        {id:64,word:'challenge',phonetic:'/ˈtʃælɪndʒ/',meaning:'n. 挑战',example:'Face challenge.',level:'CET4'},
+        {id:65,word:'characteristic',phonetic:'/ˌkærəktəˈrɪstɪk/',meaning:'n. 特征',example:'Key characteristic.',level:'CET4'},
+        {id:66,word:'circumstance',phonetic:'/ˈsɜːrkəmstæns/',meaning:'n. 环境',example:'Under circumstances.',level:'CET4'},
+        {id:67,word:'claim',phonetic:'/kleɪm/',meaning:'v. 声称',example:'Claim responsibility.',level:'CET4'},
+        {id:68,word:'communicate',phonetic:'/kəˈmjuːnɪkeɪt/',meaning:'v. 交流',example:'Communicate effectively.',level:'CET4'},
+        {id:69,word:'community',phonetic:'/kəˈmjuːnəti/',meaning:'n. 社区',example:'Local community.',level:'CET4'},
+        {id:70,word:'compete',phonetic:'/kəmˈpiːt/',meaning:'v. 竞争',example:'Compete globally.',level:'CET4'},
+        {id:71,word:'concentrate',phonetic:'/ˈkɒnsəntreɪt/',meaning:'v. 集中',example:'Concentrate on study.',level:'CET4'},
+        {id:72,word:'concept',phonetic:'/ˈkɒnsept/',meaning:'n. 概念',example:'Basic concept.',level:'CET4'},
+        {id:73,word:'concern',phonetic:'/kənˈsɜːrn/',meaning:'n. 担心',example:'Environmental concern.',level:'CET4'},
+        {id:74,word:'conclude',phonetic:'/kənˈkluːd/',meaning:'v. 总结',example:'Conclude the meeting.',level:'CET4'},
+        {id:75,word:'conduct',phonetic:'/kənˈdʌkt/',meaning:'v. 实施；行为',example:'Conduct research.',level:'CET4'},
+        {id:76,word:'confident',phonetic:'/ˈkɒnfɪdənt/',meaning:'adj. 自信的',example:'Feel confident.',level:'CET4'},
+        {id:77,word:'confirm',phonetic:'/kənˈfɜːrm/',meaning:'v. 确认',example:'Confirm reservation.',level:'CET4'},
+        {id:78,word:'conflict',phonetic:'/ˈkɒnflɪkt/',meaning:'n. 冲突',example:'Avoid conflict.',level:'CET4'},
+        {id:79,word:'consequence',phonetic:'/ˈkɒnsɪkwəns/',meaning:'n. 结果',example:'Serious consequence.',level:'CET4'},
+        {id:80,word:'consider',phonetic:'/kənˈsɪdər/',meaning:'v. 考虑',example:'Consider carefully.',level:'CET4'},
+        {id:81,word:'constant',phonetic:'/ˈkɒnstənt/',meaning:'adj. 不断的',example:'Constant change.',level:'CET4'},
+        {id:82,word:'construct',phonetic:'/kənˈstrʌkt/',meaning:'v. 建造',example:'Construct building.',level:'CET4'},
+        {id:83,word:'consume',phonetic:'/kənˈsjuːm/',meaning:'v. 消费',example:'Consume energy.',level:'CET4'},
+        {id:84,word:'contact',phonetic:'/ˈkɒntækt/',meaning:'n. 联系',example:'Keep contact.',level:'CET4'},
+        {id:85,word:'contribute',phonetic:'/kənˈtrɪbjuːt/',meaning:'v. 贡献',example:'Contribute to society.',level:'CET4'},
+        {id:86,word:'convenient',phonetic:'/kənˈviːniənt/',meaning:'adj. 方便的',example:'Convenient location.',level:'CET4'},
+        {id:87,word:'convince',phonetic:'/kənˈvɪns/',meaning:'v. 说服',example:'Convince them.',level:'CET4'},
+        {id:88,word:'cooperate',phonetic:'/kəʊˈɒpəreɪt/',meaning:'v. 合作',example:'Cooperate with team.',level:'CET4'},
+        {id:89,word:'cope',phonetic:'/kəʊp/',meaning:'v. 应对',example:'Cope with stress.',level:'CET4'},
+        {id:90,word:'creative',phonetic:'/kriˈeɪtɪv/',meaning:'adj. 创造性的',example:'Creative idea.',level:'CET4'},
+        {id:91,word:'crucial',phonetic:'/ˈkruːʃəl/',meaning:'adj. 关键的',example:'Crucial decision.',level:'CET4'},
+        {id:92,word:'cultivate',phonetic:'/ˈkʌltɪveɪt/',meaning:'v. 培养',example:'Cultivate habit.',level:'CET4'},
+        {id:93,word:'curiosity',phonetic:'/ˌkjʊəriˈɒsəti/',meaning:'n. 好奇心',example:'Natural curiosity.',level:'CET4'},
+        {id:94,word:'debate',phonetic:'/dɪˈbeɪt/',meaning:'n. 辩论',example:'Heated debate.',level:'CET4'},
+        {id:95,word:'decline',phonetic:'/dɪˈklaɪn/',meaning:'v. 下降；拒绝',example:'Decline offer.',level:'CET4'},
+        {id:96,word:'define',phonetic:'/dɪˈfaɪn/',meaning:'v. 定义',example:'Define clearly.',level:'CET4'},
+        {id:97,word:'demonstrate',phonetic:'/ˈdemənstreɪt/',meaning:'v. 展示；证明',example:'Demonstrate ability.',level:'CET4'},
+        {id:98,word:'deserve',phonetic:'/dɪˈzɜːrv/',meaning:'v. 值得',example:'Deserve praise.',level:'CET4'},
+        {id:99,word:'determine',phonetic:'/dɪˈtɜːrmɪn/',meaning:'v. 决定',example:'Determine outcome.',level:'CET4'},
+        {id:100,word:'device',phonetic:'/dɪˈvaɪs/',meaning:'n. 设备',example:'Electronic device.',level:'CET4'}
+    ];
+
+    const cet6HighFreq = [
+        {id:201,word:'abolish',phonetic:'/əˈbɒlɪʃ/',meaning:'v. 废除',example:'Abolish the law.',level:'CET6'},
+        {id:202,word:'absurd',phonetic:'/əbˈsɜːrd/',meaning:'adj. 荒谬的',example:'Absurd idea.',level:'CET6'},
+        {id:203,word:'acquaint',phonetic:'/əˈkweɪnt/',meaning:'v. 使熟悉',example:'Acquaint with details.',level:'CET6'},
+        {id:204,word:'adhere',phonetic:'/ədˈhɪər/',meaning:'v. 坚持；遵守',example:'Adhere to rules.',level:'CET6'},
+        {id:205,word:'adjacent',phonetic:'/əˈdʒeɪsənt/',meaning:'adj. 邻近的',example:'Adjacent rooms.',level:'CET6'},
+        {id:206,word:'administer',phonetic:'/ədˈmɪnɪstər/',meaning:'v. 管理',example:'Administer fund.',level:'CET6'},
+        {id:207,word:'adolescent',phonetic:'/ˌædəˈlesənt/',meaning:'n. 青少年',example:'Adolescent behavior.',level:'CET6'},
+        {id:208,word:'adverse',phonetic:'/ˈædvɜːrs/',meaning:'adj. 不利的',example:'Adverse effect.',level:'CET6'},
+        {id:209,word:'advocate',phonetic:'/ˈædvəkeɪt/',meaning:'v. 提倡',example:'Advocate reform.',level:'CET6'},
+        {id:210,word:'aesthetic',phonetic:'/iːsˈθetɪk/',meaning:'adj. 美学的',example:'Aesthetic value.',level:'CET6'},
+        {id:211,word:'affiliate',phonetic:'/əˈfɪlieɪt/',meaning:'v. 使附属',example:'Affiliated hospital.',level:'CET6'},
+        {id:212,word:'alleviate',phonetic:'/əˈliːvieɪt/',meaning:'v. 减轻',example:'Alleviate pain.',level:'CET6'},
+        {id:213,word:'ambiguous',phonetic:'/æmˈbɪɡjuəs/',meaning:'adj. 模糊的',example:'Ambiguous term.',level:'CET6'},
+        {id:214,word:'amend',phonetic:'/əˈmend/',meaning:'v. 修改',example:'Amend constitution.',level:'CET6'},
+        {id:215,word:'analogy',phonetic:'/əˈnælədʒi/',meaning:'n. 类比',example:'Draw analogy.',level:'CET6'},
+        {id:216,word:'anonymous',phonetic:'/əˈnɒnɪməs/',meaning:'adj. 匿名的',example:'Anonymous donor.',level:'CET6'},
+        {id:217,word:'apparatus',phonetic:'/ˌæpəˈreɪtəs/',meaning:'n. 设备',example:'Laboratory apparatus.',level:'CET6'},
+        {id:218,word:'articulate',phonetic:'/ɑːrˈtɪkjuleɪt/',meaning:'v. 清晰表达',example:'Articulate thoughts.',level:'CET6'},
+        {id:219,word:'ascertain',phonetic:'/ˌæsərˈteɪn/',meaning:'v. 查明',example:'Ascertain facts.',level:'CET6'},
+        {id:220,word:'attribute',phonetic:'/əˈtrɪbjuːt/',meaning:'v. 归因于',example:'Attribute success.',level:'CET6'},
+        {id:221,word:'autonomous',phonetic:'/ɔːˈtɒnəməs/',meaning:'adj. 自治的',example:'Autonomous region.',level:'CET6'},
+        {id:222,word:'bewilder',phonetic:'/bɪˈwɪldər/',meaning:'v. 使困惑',example:'Bewilder students.',level:'CET6'},
+        {id:223,word:'bureaucracy',phonetic:'/bjʊˈrɒkrəsi/',meaning:'n. 官僚主义',example:'Reduce bureaucracy.',level:'CET6'},
+        {id:224,word:'catastrophe',phonetic:'/kəˈtæstrəfi/',meaning:'n. 灾难',example:'Natural catastrophe.',level:'CET6'},
+        {id:225,word:'certify',phonetic:'/ˈsɜːrtɪfaɪ/',meaning:'v. 认证',example:'Certify document.',level:'CET6'},
+        {id:226,word:'chronic',phonetic:'/ˈkrɒnɪk/',meaning:'adj. 慢性的',example:'Chronic disease.',level:'CET6'},
+        {id:227,word:'cognitive',phonetic:'/ˈkɒɡnətɪv/',meaning:'adj. 认知的',example:'Cognitive development.',level:'CET6'},
+        {id:228,word:'commence',phonetic:'/kəˈmens/',meaning:'v. 开始',example:'Commence ceremony.',level:'CET6'},
+        {id:229,word:'compensate',phonetic:'/ˈkɒmpenseɪt/',meaning:'v. 补偿',example:'Compensate damage.',level:'CET6'},
+        {id:230,word:'comply',phonetic:'/kəmˈplaɪ/',meaning:'v. 遵守',example:'Comply with rules.',level:'CET6'},
+        {id:231,word:'comprehensive',phonetic:'/ˌkɒmprɪˈhensɪv/',meaning:'adj. 综合的',example:'Comprehensive review.',level:'CET6'},
+        {id:232,word:'conceive',phonetic:'/kənˈsiːv/',meaning:'v. 构想',example:'Conceive a plan.',level:'CET6'},
+        {id:233,word:'condemn',phonetic:'/kənˈdem/',meaning:'v. 谴责',example:'Condemn violence.',level:'CET6'},
+        {id:234,word:'confer',phonetic:'/kənˈfɜːr/',meaning:'v. 授予；商议',example:'Confer degree.',level:'CET6'},
+        {id:235,word:'conscientious',phonetic:'/ˌkɒnʃiˈenʃəs/',meaning:'adj. 认真的',example:'Conscientious worker.',level:'CET6'},
+        {id:236,word:'consolidate',phonetic:'/kənˈsɒlɪdeɪt/',meaning:'v. 巩固',example:'Consolidate power.',level:'CET6'},
+        {id:237,word:'contemplate',phonetic:'/ˈkɒntəmpleɪt/',meaning:'v. 沉思',example:'Contemplate life.',level:'CET6'},
+        {id:238,word:'controversy',phonetic:'/ˈkɒntrəvɜːrsi/',meaning:'n. 争议',example:'Cause controversy.',level:'CET6'},
+        {id:239,word:'converge',phonetic:'/kənˈvɜːrdʒ/',meaning:'v. 汇聚',example:'Lines converge.',level:'CET6'},
+        {id:240,word:'cordial',phonetic:'/ˈkɔːrdiəl/',meaning:'adj. 热诚的',example:'Cordial welcome.',level:'CET6'},
+        {id:241,word:'corrupt',phonetic:'/kəˈrʌpt/',meaning:'adj. 腐败的',example:'Corrupt official.',level:'CET6'},
+        {id:242,word:'counterpart',phonetic:'/ˈkaʊntərpɑːrt/',meaning:'n. 对应的人/物',example:'Foreign counterpart.',level:'CET6'},
+        {id:243,word:'criterion',phonetic:'/kraɪˈtɪəriən/',meaning:'n. 标准',example:'Evaluation criterion.',level:'CET6'},
+        {id:244,word:'crucial',phonetic:'/ˈkruːʃəl/',meaning:'adj. 关键的',example:'Crucial moment.',level:'CET6'},
+        {id:245,word:'cumulative',phonetic:'/ˈkjuːmjələtɪv/',meaning:'adj. 累积的',example:'Cumulative effect.',level:'CET6'},
+        {id:246,word:'decisive',phonetic:'/dɪˈsaɪsɪv/',meaning:'adj. 决定性的',example:'Decisive factor.',level:'CET6'},
+        {id:247,word:'dedicate',phonetic:'/ˈdedɪkeɪt/',meaning:'v. 致力于',example:'Dedicate to work.',level:'CET6'},
+        {id:248,word:'deficit',phonetic:'/ˈdefɪsɪt/',meaning:'n. 赤字',example:'Budget deficit.',level:'CET6'},
+        {id:249,word:'demonstrate',phonetic:'/ˈdemənstreɪt/',meaning:'v. 展示',example:'Demonstrate skill.',level:'CET6'},
+        {id:250,word:'depict',phonetic:'/dɪˈpɪkt/',meaning:'v. 描绘',example:'Depict scene.',level:'CET6'},
+        {id:251,word:'derive',phonetic:'/dɪˈraɪv/',meaning:'v. 源自',example:'Derive from.',level:'CET6'},
+        {id:252,word:'deteriorate',phonetic:'/dɪˈtɪəriəreɪt/',meaning:'v. 恶化',example:'Condition deteriorate.',level:'CET6'},
+        {id:253,word:'deviate',phonetic:'/ˈdiːvieɪt/',meaning:'v. 偏离',example:'Deviate from plan.',level:'CET6'},
+        {id:254,word:'dilemma',phonetic:'/dɪˈlemə/',meaning:'n. 困境',example:'Face dilemma.',level:'CET6'},
+        {id:255,word:'diminish',phonetic:'/dɪˈmɪnɪʃ/',meaning:'v. 减少',example:'Diminish importance.',level:'CET6'},
+        {id:256,word:'disclose',phonetic:'/dɪsˈkləʊz/',meaning:'v. 揭露',example:'Disclose information.',level:'CET6'},
+        {id:257,word:'discriminate',phonetic:'/dɪˈskrɪmɪneɪt/',meaning:'v. 歧视；区分',example:'Discriminate against.',level:'CET6'},
+        {id:258,word:'disperse',phonetic:'/dɪˈspɜːrs/',meaning:'v. 分散',example:'Crowd disperse.',level:'CET6'},
+        {id:259,word:'displace',phonetic:'/dɪsˈpleɪs/',meaning:'v. 取代',example:'Displace workers.',level:'CET6'},
+        {id:260,word:'dispose',phonetic:'/dɪˈspəʊz/',meaning:'v. 处理',example:'Dispose of waste.',level:'CET6'},
+        {id:261,word:'dispute',phonetic:'/dɪˈspjuːt/',meaning:'n. 争论',example:'Settle dispute.',level:'CET6'},
+        {id:262,word:'distort',phonetic:'/dɪˈstɔːrt/',meaning:'v. 扭曲',example:'Distort truth.',level:'CET6'},
+        {id:263,word:'diverse',phonetic:'/daɪˈvɜːrs/',meaning:'adj. 多样的',example:'Diverse culture.',level:'CET6'},
+        {id:264,word:'dominate',phonetic:'/ˈdɒmɪneɪt/',meaning:'v. 主导',example:'Dominate market.',level:'CET6'},
+        {id:265,word:'drastic',phonetic:'/ˈdræstɪk/',meaning:'adj. 激烈的',example:'Drastic change.',level:'CET6'},
+        {id:266,word:'elaborate',phonetic:'/ɪˈlæbərət/',meaning:'adj. 精心制作的',example:'Elaborate plan.',level:'CET6'},
+        {id:267,word:'elevate',phonetic:'/ˈelɪveɪt/',meaning:'v. 提升',example:'Elevate status.',level:'CET6'},
+        {id:268,word:'embrace',phonetic:'/ɪmˈbreɪs/',meaning:'v. 拥抱；接受',example:'Embrace change.',level:'CET6'},
+        {id:269,word:'emerge',phonetic:'/iˈmɜːrdʒ/',meaning:'v. 出现',example:'Emerge from crisis.',level:'CET6'},
+        {id:270,word:'encompass',phonetic:'/ɪnˈkʌmpəs/',meaning:'v. 包含',example:'Encompass all.',level:'CET6'},
+        {id:271,word:'enhance',phonetic:'/ɪnˈhɑːns/',meaning:'v. 增强',example:'Enhance skills.',level:'CET6'},
+        {id:272,word:'enormous',phonetic:'/ɪˈnɔːrməs/',meaning:'adj. 巨大的',example:'Enormous potential.',level:'CET6'},
+        {id:273,word:'ensure',phonetic:'/ɪnˈʃʊər/',meaning:'v. 确保',example:'Ensure safety.',level:'CET6'},
+        {id:274,word:'equivalent',phonetic:'/ɪˈkwɪvələnt/',meaning:'adj. 等价的',example:'Equivalent amount.',level:'CET6'},
+        {id:275,word:'erupt',phonetic:'/ɪˈrʌpt/',meaning:'v. 爆发',example:'Volcano erupt.',level:'CET6'},
+        {id:276,word:'essence',phonetic:'/ˈesəns/',meaning:'n. 本质',example:'Essence of life.',level:'CET6'},
+        {id:277,word:'eternal',phonetic:'/ɪˈtɜːrnəl/',meaning:'adj. 永恒的',example:'Eternal love.',level:'CET6'},
+        {id:278,word:'evoke',phonetic:'/ɪˈvəʊk/',meaning:'v. 唤起',example:'Evoke memory.',level:'CET6'},
+        {id:279,word:'exceed',phonetic:'/ɪkˈsiːd/',meaning:'v. 超过',example:'Exceed limit.',level:'CET6'},
+        {id:280,word:'exclusive',phonetic:'/ɪkˈskluːsɪv/',meaning:'adj. 独有的',example:'Exclusive right.',level:'CET6'},
+    ];
+
+    let allWords = [...cet4HighFreq, ...cet6HighFreq];
+
+    // 阅读真题模拟 (四级风格)
+    let readingPassages = [
+        {
+            passage: "A new study suggests that people who drink coffee regularly may have a lower risk of heart disease. Researchers followed over 100,000 adults for 10 years and found that those who drank three to five cups of coffee per day were 15% less likely to develop heart problems. However, the study also warned that adding too much sugar or cream could cancel out the benefits.",
+            question: "What is the main finding of the study?",
+            options: ["Coffee drinking reduces heart disease risk.", "Sugar in coffee is healthy.", "Heart disease affects 100,000 people.", "Tea is better than coffee."],
+            answer: 0
+        },
+        {
+            passage: "Many universities are now offering online courses to reach a wider audience. This trend has been accelerated by the pandemic, which forced institutions to switch to remote learning. While online education provides flexibility, some students miss the face-to-face interaction with teachers and classmates.",
+            question: "What is one disadvantage of online education mentioned in the passage?",
+            options: ["It is too expensive.", "Lack of personal interaction.", "It is less flexible.", "Fewer courses are offered."],
+            answer: 1
+        },
+        {
+            passage: "The global push for renewable energy has led to a rapid increase in solar and wind power installations. In 2022, renewable sources accounted for 30% of the world's electricity generation. Experts say that to meet climate goals, this number needs to reach 60% by 2030.",
+            question: "What percentage of electricity came from renewable sources in 2022?",
+            options: ["15%", "30%", "60%", "45%"],
+            answer: 1
+        }
+    ];
+
+    // 听力真题模拟 (四级短对话)
+    let listeningTasks = [
+        {
+            script: "W: I heard you got a new job. How do you like it? M: It's challenging but rewarding. I'm learning a lot.",
+            question: "What does the man think of his new job?",
+            options: ["It is boring.", "It is challenging and rewarding.", "He wants to quit.", "The salary is low."],
+            answer: 1
+        },
+        {
+            script: "M: Excuse me, could you tell me where the nearest subway station is? W: Sure, go straight for two blocks and turn left. You can't miss it.",
+            question: "What is the woman doing?",
+            options: ["Buying a ticket.", "Giving directions.", "Complaining about noise.", "Ordering food."],
+            answer: 1
+        },
+        {
+            script: "W: Did you finish the project on time? M: Yes, but I had to work overtime every day last week.",
+            question: "What does the man imply?",
+            options: ["He enjoyed the project.", "He worked extra hours to finish.", "He didn't complete it.", "He asked for help."],
+            answer: 1
+        }
+    ];
+
+    // 状态与存储
+    const STORAGE_KEY = 'wm_data_v3';
+    function loadData() { try { const d = localStorage.getItem(STORAGE_KEY); return d ? JSON.parse(d) : {}; } catch(e) { return {}; } }
+    function saveData(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+    let appData = loadData();
+    if (!appData.words) appData.words = {}; // {id: {stage,nextReview,correctCount,...}}
+    if (!appData.readStats) appData.readStats = {done:0,correct:0};
+    if (!appData.listenStats) appData.listenStats = {done:0,correct:0};
+    if (!appData.dailyNew) appData.dailyNew = {};
+    const stageIntervals = [20, 60, 1440, 2880, 5760, 10080, 21600, 43200]; // 分钟
+    const MASTERED_STAGE = 7;
+
+    function getNextReview(stage) { return Date.now() + stageIntervals[Math.min(stage,7)]*60*1000; }
+    function getWordRec(id) { return appData.words[id]; }
+    function ensureWordRec(id) { if(!appData.words[id]) appData.words[id]={stage:-1,nextReview:0}; return appData.words[id]; }
+
+    const today = () => new Date().toISOString().split('T')[0];
+    function filteredWords() {
+        const level = document.getElementById('levelSelect').value;
+        if (level === 'all') return allWords;
+        return allWords.filter(w => w.level === level);
+    }
+    function getReviewable() {
+        const now = Date.now();
+        return filteredWords().filter(w => { const r = getWordRec(w.id); return r && r.stage>=0 && r.nextReview<=now && r.stage<MASTERED_STAGE; });
+    }
+    function getNewRemaining() {
+        const limit = parseInt(document.getElementById('dailyNewCount').value)||20;
+        const todayLearned = appData.dailyNew[today()] || 0;
+        const unlearned = filteredWords().filter(w => { const r = getWordRec(w.id); return !r || r.stage<0; });
+        return { words: unlearned, remaining: Math.max(0, limit - todayLearned) };
+    }
+
+    // UI更新
+    function refreshVocab() {
+        const reviewable = getReviewable();
+        const newInfo = getNewRemaining();
+        document.getElementById('statNew').textContent = Math.min(newInfo.remaining, newInfo.words.length);
+        document.getElementById('statReview').textContent = reviewable.length;
+        document.getElementById('statMastered').textContent = filteredWords().filter(w=>{const r=getWordRec(w.id);return r&&r.stage>=MASTERED_STAGE;}).length;
+        document.getElementById('statTotal').textContent = filteredWords().length;
+        const badge = document.getElementById('reviewBadge');
+        if(reviewable.length>0){ badge.style.display='flex'; badge.textContent=reviewable.length; } else badge.style.display='none';
+
+        const word = selectWord();
+        if(word) showWordCard(word);
+        else { document.getElementById('wordCardContainer').style.display='none'; document.getElementById('emptyVocab').style.display=''; }
+    }
+    function selectWord() {
+        const reviewable = getReviewable();
+        if(reviewable.length) return reviewable.sort((a,b)=>(getWordRec(a.id)?.nextReview||0)-(getWordRec(b.id)?.nextReview||0))[0];
+        const newInfo = getNewRemaining();
+        if(newInfo.remaining>0 && newInfo.words.length) return newInfo.words[Math.floor(Math.random()*newInfo.words.length)];
+        return null;
+    }
+    let currentWord = null, isFlipped = false;
+    function showWordCard(w) {
+        currentWord = w; isFlipped = false;
+        document.getElementById('wordCardContainer').style.display='';
+        document.getElementById('emptyVocab').style.display='none';
+        document.getElementById('cardWord').textContent = w.word;
+        document.getElementById('cardPhonetic').textContent = w.phonetic || '';
+        document.getElementById('cardMeaning').textContent = w.meaning;
+        document.getElementById('cardExample').textContent = w.example || '';
+        document.getElementById('wordCard').classList.remove('flipped');
+        const rec = getWordRec(w.id);
+        const stages = ['🔄阶段0','⏱阶段1','📅阶段2','📅阶段3','📅阶段4','📅阶段5','🗓阶段6','⭐已掌握'];
+        document.getElementById('cardStageBadge').textContent = rec&&rec.stage>=0 ? stages[Math.min(rec.stage,7)] : '🆕新词';
+    }
+    function handleKnow() {
+        if(!currentWord) return;
+        const rec = ensureWordRec(currentWord.id);
+        const wasNew = rec.stage < 0;
+        if(rec.stage < MASTERED_STAGE) rec.stage = Math.min(rec.stage+1, MASTERED_STAGE);
+        rec.nextReview = getNextReview(rec.stage);
+        rec.correctCount = (rec.correctCount||0)+1;
+        if(wasNew) { const td = today(); appData.dailyNew[td] = (appData.dailyNew[td]||0)+1; }
+        saveData(appData); refreshVocab();
+        showToast('✅ 认识！'+(rec.stage<MASTERED_STAGE?'下次复习已安排':'恭喜掌握！'));
+    }
+    function handleDunno() {
+        if(!currentWord) return;
+        const rec = ensureWordRec(currentWord.id);
+        rec.stage = 0; rec.nextReview = getNextReview(0); rec.wrongCount = (rec.wrongCount||0)+1;
+        saveData(appData); refreshVocab();
+        showToast('😕 不认识，20分钟后复习');
+    }
+    document.getElementById('wordCard').addEventListener('click', ()=>{
+        if(!currentWord) return;
+        isFlipped = !isFlipped;
+        document.getElementById('wordCard').classList.toggle('flipped', isFlipped);
+    });
+    document.getElementById('btnKnow').onclick = ()=>{ if(!isFlipped){ isFlipped=true; document.getElementById('wordCard').classList.add('flipped'); setTimeout(handleKnow,300); } else handleKnow(); };
+    document.getElementById('btnDunno').onclick = ()=>{ if(!isFlipped){ isFlipped=true; document.getElementById('wordCard').classList.add('flipped'); setTimeout(handleDunno,300); } else handleDunno(); };
+    document.getElementById('btnSpeakCard').onclick = ()=>{
+        if(!currentWord) return;
+        const u = new SpeechSynthesisUtterance(currentWord.word); u.lang='en-US'; speechSynthesis.speak(u);
+    };
+
+    // 阅读真题
+    let currentReading = null, readAnswered = false;
+    function loadReading() {
+        currentReading = readingPassages[Math.floor(Math.random()*readingPassages.length)];
+        document.getElementById('readingPassageText').textContent = currentReading.passage;
+        document.getElementById('readingQuestion').textContent = currentReading.question;
+        const opts = document.getElementById('readingOptions');
+        opts.innerHTML = currentReading.options.map((o,i)=>`<div class="quiz-option" data-idx="${i}">${String.fromCharCode(65+i)}. ${o}</div>`).join('');
+        document.getElementById('readingFeedback').textContent = '';
+        document.getElementById('btnNextReading').style.display = 'none';
+        readAnswered = false;
+        opts.querySelectorAll('.quiz-option').forEach(el=> el.onclick = function(){
+            if(readAnswered) return;
+            readAnswered = true;
+            const idx = parseInt(this.dataset.idx);
+            const correct = idx === currentReading.answer;
+            appData.readStats.done++; if(correct) appData.readStats.correct++;
+            saveData(appData);
+            opts.querySelectorAll('.quiz-option').forEach(o=>{ if(parseInt(o.dataset.idx)===currentReading.answer) o.classList.add('correct'); else if(parseInt(o.dataset.idx)===idx && !correct) o.classList.add('wrong'); });
+            document.getElementById('readingFeedback').textContent = correct ? '✅ 正确！' : `❌ 错误！正确答案是 ${String.fromCharCode(65+currentReading.answer)}`;
+            document.getElementById('btnNextReading').style.display = '';
+            updateReadStats();
+        });
+    }
+    function updateReadStats() {
+        document.getElementById('readAccuracy').textContent = appData.readStats.done ? Math.round(appData.readStats.correct/appData.readStats.done*100)+'%' : '-';
+        document.getElementById('readDone').textContent = appData.readStats.done;
+    }
+    document.getElementById('btnNextReading').onclick = loadReading;
+
+    // 听力真题
+    let currentListen = null, listenAnswered = false;
+    function loadListening() {
+        currentListen = listeningTasks[Math.floor(Math.random()*listeningTasks.length)];
+        document.getElementById('listenQuestion').textContent = currentListen.question;
+        const opts = document.getElementById('listenOptions');
+        opts.innerHTML = currentListen.options.map((o,i)=>`<div class="quiz-option" data-idx="${i}">${String.fromCharCode(65+i)}. ${o}</div>`).join('');
+        document.getElementById('listenFeedback').textContent = '';
+        document.getElementById('btnNextListen').style.display = 'none';
+        listenAnswered = false;
+        opts.querySelectorAll('.quiz-option').forEach(el=> el.onclick = function(){
+            if(listenAnswered) return;
+            listenAnswered = true;
+            const idx = parseInt(this.dataset.idx);
+            const correct = idx === currentListen.answer;
+            appData.listenStats.done++; if(correct) appData.listenStats.correct++;
+            saveData(appData);
+            opts.querySelectorAll('.quiz-option').forEach(o=>{ if(parseInt(o.dataset.idx)===currentListen.answer) o.classList.add('correct'); else if(parseInt(o.dataset.idx)===idx && !correct) o.classList.add('wrong'); });
+            document.getElementById('listenFeedback').textContent = correct ? '✅ 正确！' : `❌ 错误！正确答案是 ${String.fromCharCode(65+currentListen.answer)}`;
+            document.getElementById('btnNextListen').style.display = '';
+            updateListenStats();
+        });
+    }
+    function updateListenStats() {
+        document.getElementById('listenAccuracy').textContent = appData.listenStats.done ? Math.round(appData.listenStats.correct/appData.listenStats.done*100)+'%' : '-';
+        document.getElementById('listenDone').textContent = appData.listenStats.done;
+    }
+    document.getElementById('btnPlayListenAudio').onclick = ()=>{
+        if(!currentListen) return;
+        const u = new SpeechSynthesisUtterance(currentListen.script); u.lang='en-US'; speechSynthesis.speak(u);
+    };
+    document.getElementById('btnNextListen').onclick = loadListening;
+
+    // 导入功能
+    function importJSON(callback) {
+        const input = document.createElement('input'); input.type='file'; input.accept='.json';
+        input.onchange = e => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = ev => {
+                try { const data = JSON.parse(ev.target.result); callback(data); } catch(ex) { showToast('JSON解析错误'); }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    }
+    document.getElementById('btnImportWords').onclick = ()=> importJSON(data => {
+        if(data.words && Array.isArray(data.words)) {
+            allWords = [...allWords, ...data.words];
+            showToast(`成功导入${data.words.length}个单词`);
+            refreshVocab();
+        } else showToast('格式错误，需要 { "words": [...] }');
+    });
+    document.getElementById('btnImportReading').onclick = ()=> importJSON(data => {
+        if(data.passages && Array.isArray(data.passages)) {
+            readingPassages = [...readingPassages, ...data.passages];
+            showToast(`导入${data.passages.length}篇阅读`);
+        }
+    });
+    document.getElementById('btnImportListening').onclick = ()=> importJSON(data => {
+        if(data.tasks && Array.isArray(data.tasks)) {
+            listeningTasks = [...listeningTasks, ...data.tasks];
+            showToast(`导入${data.tasks.length}道听力题`);
+        }
+    });
+
+    // 标签切换
+    document.getElementById('tabNav').addEventListener('click', e => {
+        const btn = e.target.closest('.tab-btn'); if(!btn) return;
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+        document.getElementById('panel'+btn.dataset.tab.charAt(0).toUpperCase()+btn.dataset.tab.slice(1)).classList.add('active');
+        if(btn.dataset.tab==='vocab') refreshVocab();
+        else if(btn.dataset.tab==='reading') { if(!currentReading) loadReading(); updateReadStats(); }
+        else if(btn.dataset.tab==='listening') { if(!currentListen) loadListening(); updateListenStats(); }
+    });
+
+    document.getElementById('levelSelect').onchange = refreshVocab;
+    document.getElementById('dailyNewCount').onchange = refreshVocab;
+
+    function showToast(msg) {
+        const t = document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t);
+        setTimeout(()=>t.remove(), 2200);
+    }
+    // 初始加载
+    refreshVocab();
+    loadReading();
+    loadListening();
+})();
+</script>
+</body>
+</html>
